@@ -1,0 +1,27 @@
+[project]
+name = "simulator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12.2",
+    "pydantic-core>=2.41.4",
+    "simpy>=4.1.1",
+]
+
+[project.scripts]
+ansible-sim = "ansible_simulator.simulation:main"
+ansible-sim-strategy-compare = "ansible_simulator.examples.strategy_comparison:main"
+ansible-sim-integration-test = "ansible_simulator.examples.integration_test:main"
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = ["simulator", "simulator.infra", "simulator.models", "ansible_simulator", "ansible_simulator.shared", "ansible_simulator.components", "ansible_simulator.examples"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+]
