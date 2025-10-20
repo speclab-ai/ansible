@@ -1,0 +1,4 @@
+[console_scripts]
+ansible-sim = ansible_simulator.simulation:main
+ansible-sim-integration-test = ansible_simulator.examples.integration_test:main
+ansible-sim-strategy-compare = ansible_simulator.examples.strategy_comparison:main

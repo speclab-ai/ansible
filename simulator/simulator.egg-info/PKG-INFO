@@ -1,0 +1,42 @@
+Metadata-Version: 2.4
+Name: simulator
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.12.2
+Requires-Dist: pydantic-core>=2.41.4
+Requires-Dist: simpy>=4.1.1
+
+# Ansible Core Simulator
+
+A comprehensive simulation of Ansible's architecture and components.
+
+## Contents
+
+- `simulator/` - Core simulation infrastructure (network, machines, resources)
+- `ansible_simulator/` - Ansible-specific simulation components
+
+## Running Simulations
+
+### Main Ansible Simulation
+
+```bash
+uv run ansible-sim
+```
+
+### Strategy Comparison
+
+```bash
+uv run ansible-sim-strategy-compare
+```
+
+### Integration Test
+
+```bash
+uv run ansible-sim-integration-test
+```
+
+## Documentation
+
+See `ansible_simulator/README.md` for detailed documentation of the Ansible simulator.
