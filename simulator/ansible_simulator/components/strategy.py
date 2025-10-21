@@ -246,6 +246,8 @@ class LinearStrategy(StrategyBase):
         while not iterator.all_hosts_complete():
             # Get next tasks for all non-failed hosts
             tasks_to_run = []
+            hosts_with_work = []
+            hosts_without_work = []
 
             for host in hosts:
                 if host.name in self.task_queue_manager.failed_hosts:
@@ -255,6 +257,31 @@ class LinearStrategy(StrategyBase):
                 if next_task:
                     task, state = next_task
                     tasks_to_run.append((task, host, state))
+                    hosts_with_work.append(host.name)
+                else:
+                    # PROBLEM REPRODUCTION (d6d2251a):
+                    # Host has no work but we're in linear strategy
+                    # Generate "meta: noop" to keep it in lockstep
+                    if not iterator.is_host_complete(host.name):
+                        hosts_without_work.append(host.name)
+
+            # PROBLEM (d6d2251a): Generate noop tasks for idle hosts
+            if hosts_without_work and hosts_with_work:
+                for host_name in hosts_without_work:
+                    # Find the host object
+                    host_obj = next((h for h in hosts if h.name == host_name), None)
+                    if host_obj:
+                        noop_task = Task(
+                            name="meta: noop (implicit)",
+                            action="meta",
+                            args={"_raw_params": "noop"},
+                            task_id=f"implicit_noop_{host_name}"
+                        )
+                        tasks_to_run.append((noop_task, host_obj, iterator.ITERATING_TASKS))
+                        logger.warning(
+                            f"[{self.env.now:.4f}] PROBLEM d6d2251a: Generated implicit noop for "
+                            f"{host_name} to keep in lockstep with {len(hosts_with_work)} hosts with work"
+                        )
 
             if not tasks_to_run:
                 break

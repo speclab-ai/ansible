@@ -11,6 +11,10 @@ ansible_simulator/components/strategy.py
 ansible_simulator/examples/__init__.py
 ansible_simulator/examples/integration_test.py
 ansible_simulator/examples/problem_395e5e20_state_representation.py
+ansible_simulator/examples/problem_42355d18_double_calculation.py
+ansible_simulator/examples/problem_5c225dc0_playiterator_public_api.py
+ansible_simulator/examples/problem_cb94c0cc_missing_timeout.py
+ansible_simulator/examples/problem_d6d2251a_implicit_meta_tasks.py
 ansible_simulator/examples/strategy_comparison.py
 ansible_simulator/shared/__init__.py
 ansible_simulator/shared/models.py

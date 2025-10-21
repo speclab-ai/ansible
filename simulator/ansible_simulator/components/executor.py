@@ -357,12 +357,18 @@ class HostState(BaseModel):
     - Uses plain integers for run_state and fail_state
     - No explicit type or readable representation
     - Hard to understand what state values mean
+
+    PROBLEM REPRODUCTION (d6d2251a):
+    - Tracks whether implicit flush_handlers has been generated
     """
     host_name: str
     run_state: int = 0  # Plain integer - confusing! What does 0 mean?
     fail_state: int = 0  # Plain integer for failure state
     task_index: int = 0
     notified_handlers: List[str] = Field(default_factory=list)
+
+    # PROBLEM (d6d2251a): Track implicit flush_handlers generation
+    implicit_flush_generated: bool = False
 
     def __str__(self) -> str:
         """
@@ -464,6 +470,24 @@ class PlayIterator(BaseModel):
                     # PROBLEM: Returning integer
                     return (task, self.ITERATING_TASKS)
             else:
+                # PROBLEM REPRODUCTION (d6d2251a):
+                # Generate implicit "meta: flush_handlers" for ALL hosts
+                # even if they have NO notified handlers!
+                if not state.implicit_flush_generated:
+                    state.implicit_flush_generated = True
+                    implicit_flush = Task(
+                        name="meta: flush_handlers (implicit)",
+                        action="meta",
+                        args={"_raw_params": "flush_handlers"},
+                        task_id="implicit_flush_handlers"
+                    )
+                    logger.warning(
+                        f"[{logger.name}] PROBLEM d6d2251a: Generated implicit flush_handlers for "
+                        f"{host_name} (has {len(state.notified_handlers)} notified handlers)"
+                    )
+                    # Return implicit flush_handlers without changing state yet
+                    return (implicit_flush, self.ITERATING_TASKS)
+
                 # Move to handlers - PROBLEM: Magic number 4
                 state.run_state = self.ITERATING_HANDLERS
                 state.task_index = 0
