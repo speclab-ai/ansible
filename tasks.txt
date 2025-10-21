@@ -1,0 +1,81 @@
+Ansible Tasks That Would Benefit From Simulator Reference
+================================================================================
+
+Found 16 relevant tasks out of 96 total
+
+The simulator provides:
+- Complete PlayIterator state machine implementation
+- TaskExecutor with task preparation and execution flow
+- WorkerProcess showing forking and inter-process communication
+- TaskQueueManager managing worker pool and task distribution
+- Strategy plugins (Linear and Free) orchestrating execution
+- Action plugins and module execution chain
+- Handler execution flow
+- Host state management
+
+--------------------------------------------------------------------------------
+
+3. instance_ansible__ansible-395e5e20fab9cad517243372fa3c3c5d9e09ab2a-v7eee2454f617569fd6889f2211f75bc02a35f9f8
+   Title: Standardize PlayIterator state representation
+   Why simulator helps: Simulator has complete PlayIterator implementation showing state machine design
+
+6. instance_ansible__ansible-5e369604e1930b1a2e071fecd7ec5276ebd12cb1-v0f01c69f1e2528b935359cfe578530722bca2c59
+   Title: Forked output from Display.display unreliable
+   Why simulator helps: Simulator implements worker process forking and TaskQueueManager communication
+
+9. instance_ansible__ansible-1b70260d5aa2f6c9782fd2b848e8d16566e50d85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+   Title: Block with tag causes re-run of role
+   Why simulator helps: Simulator's PlayIterator shows how roles and blocks are iterated
+
+18. instance_ansible__ansible-9142be2f6cabbe6597c9254c5bb9186d17036d55-v0f01c69f1e2528b935359cfe578530722bca2c59
+   Title: Python module shebang not honored
+   Why simulator helps: Simulator's module execution shows how modules are prepared and executed
+
+29. instance_ansible__ansible-42355d181a11b51ebfc56f6f4b3d9c74e01cb13b-v1055803c3a812189a1133297f7f5468579283f86
+   Title: Avoid double calculation of loops and delegate_to in TaskExecutor
+   Why simulator helps: Simulator has TaskExecutor and WorkerProcess showing task preparation flow
+
+37. instance_ansible__ansible-5640093f1ca63fd6af231cc8a7fb7d40e1907b8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+   Title: module_defaults not applied when invoked via action plugin
+   Why simulator helps: Simulator shows action plugin execution and module invocation chain
+
+56. instance_ansible__ansible-5c225dc0f5bfa677addeac100a8018df3f3a9db1-v173091e2e36d38c978002990795f66cfc0af30ad
+   Title: Introduce public methods to access PlayIterator._host_states
+   Why simulator helps: Simulator has PlayIterator with host state management
+
+57. instance_ansible__ansible-811093f0225caa4dd33890933150a81c6a6d5226-v1055803c3a812189a1133297f7f5468579283f86
+   Title: Predictable handler execution across hosts
+   Why simulator helps: Simulator shows full handler execution flow with PlayIterator
+
+64. instance_ansible__ansible-8127abbc298cabf04aaa89a478fc5e5e3432a6fc-v30a923fb5c164d6cd18280c02422f75e611e8fb2
+   Title: Isolate worker processes by detaching inherited stdio
+   Why simulator helps: Simulator implements worker process architecture and isolation
+
+70. instance_ansible__ansible-a7d2a4e03209cff1e97e59fd54bb2b05fdbdbec6-v0f01c69f1e2528b935359cfe578530722bca2c59
+   Title: Display methods in forked worker processes not deduplicated
+   Why simulator helps: Simulator shows TaskQueueManager and worker communication patterns
+
+74. instance_ansible__ansible-d6d2251929c84c3aa883bad7db0f19cc9ff0339e-v30a923fb5c164d6cd18280c02422f75e611e8fb2
+   Title: Performance degradation from unnecessary implicit meta/noop tasks
+   Why simulator helps: Simulator's PlayIterator and Strategy show meta task handling
+
+76. instance_ansible__ansible-39bd8b99ec8c6624207bf3556ac7f9626dad9173-v1055803c3a812189a1133297f7f5468579283f86
+   Title: async_wrapper produces inconsistent information
+   Why simulator helps: Simulator shows async task execution flow (if applicable)
+
+79. instance_ansible__ansible-4c5ce5a1a9e79a845aff4978cfeb72a0d4ecf7d6-v1055803c3a812189a1133297f7f5468579283f86
+   Title: Support respawning modules under compatible interpreters
+   Why simulator helps: Simulator's module execution shows interpreter selection and module prep
+
+80. instance_ansible__ansible-164881d871964aa64e0f911d03ae270acbad253c-v390e508d27db7a51eece36bb6d9698b63a5b638a
+   Title: UnsafeProxy deprecation causes inconsistency
+   Why simulator helps: Simulator's TaskExecutor shows variable wrapping during execution
+
+92. instance_ansible__ansible-c616e54a6e23fa5616a1d56d243f69576164ef9b-v1055803c3a812189a1133297f7f5468579283f86
+   Title: module_common fails to resolve module_utils from collections
+   Why simulator helps: Simulator shows module_utils resolution in module execution
+
+96. instance_ansible__ansible-cb94c0cc550df9e98f1247bc71d8c2b861c75049-v1055803c3a812189a1133297f7f5468579283f86
+   Title: Missing timeout in ad-hoc CLI; task_include ignores timeout
+   Why simulator helps: Simulator shows task execution with timeouts
+
