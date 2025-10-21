@@ -123,22 +123,38 @@ class Task(BaseModel):
 
 
 class Block(BaseModel):
-    """Represents a block of tasks (with rescue/always)."""
+    """
+    Represents a block of tasks (with rescue/always).
+
+    PROBLEM REPRODUCTION (1b70260d):
+    - Blocks can have tags
+    - Tag filtering with blocks causes role dependencies to execute twice
+    """
     name: Optional[str] = None
     tasks: List[Task] = Field(default_factory=list)
     rescue: List[Task] = Field(default_factory=list)
     always: List[Task] = Field(default_factory=list)
 
     when: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)  # PROBLEM: Tags on blocks
 
 
 class Role(BaseModel):
-    """Represents an Ansible role."""
+    """
+    Represents an Ansible role.
+
+    PROBLEM REPRODUCTION (1b70260d):
+    - Roles can have dependencies (defined in meta/main.yml)
+    - Dependencies should only execute once, but with tag filtering they execute twice
+    """
     name: str
     vars: Dict[str, Any] = Field(default_factory=dict)
     tasks: List[Task] = Field(default_factory=list)
     handlers: List[Task] = Field(default_factory=list)
     defaults: Dict[str, Any] = Field(default_factory=dict)
+
+    # PROBLEM: Role dependencies from meta/main.yml
+    dependencies: List[str] = Field(default_factory=list)
 
 
 class Play(BaseModel):
