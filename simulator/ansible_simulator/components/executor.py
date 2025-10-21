@@ -10,7 +10,7 @@ Includes:
 
 import simpy
 import random
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, ClassVar
 from pydantic import BaseModel, Field
 from enum import Enum
 from collections import deque
@@ -278,23 +278,27 @@ class WorkerProcess(BaseModel):
 # Play Iterator
 # ============================================================================
 
-class IteratingStates(str, Enum):
-    """States in the play iteration state machine."""
-    SETUP = "setup"
-    TASKS = "tasks"
-    RESCUE = "rescue"
-    ALWAYS = "always"
-    HANDLERS = "handlers"
-    COMPLETE = "complete"
-
-
 class HostState(BaseModel):
-    """State for a single host in play iteration."""
+    """
+    State for a single host in play iteration.
+
+    PROBLEM REPRODUCTION (395e5e20):
+    - Uses plain integers for run_state and fail_state
+    - No explicit type or readable representation
+    - Hard to understand what state values mean
+    """
     host_name: str
-    run_state: IteratingStates = IteratingStates.SETUP
-    fail_state: bool = False
+    run_state: int = 0  # Plain integer - confusing! What does 0 mean?
+    fail_state: int = 0  # Plain integer for failure state
     task_index: int = 0
     notified_handlers: List[str] = Field(default_factory=list)
+
+    def __str__(self) -> str:
+        """
+        PROBLEM: String representation shows opaque numeric values.
+        Makes debugging difficult - what does "run_state=1, fail_state=0" mean?
+        """
+        return f"HostState(host={self.host_name}, run_state={self.run_state}, fail_state={self.fail_state})"
 
 
 class PlayIterator(BaseModel):
@@ -303,65 +307,99 @@ class PlayIterator(BaseModel):
 
     Manages the state of task execution across all hosts.
     Mirrors lib/ansible/executor/play_iterator.py
+
+    PROBLEM REPRODUCTION (395e5e20):
+    - Run states and failure states are exposed as plain integers
+    - Used directly by executor logic and strategy plugins
+    - Makes code harder to read (what does ITERATING_TASKS=1 mean?)
+    - External plugins access via PlayIterator.ITERATING_TASKS
+    - No public type to represent these states
     """
+
+    # Run state constants - exposed as plain integers
+    # PROBLEM: Just numbers, no semantic meaning
+    ITERATING_SETUP: ClassVar[int] = 0
+    ITERATING_TASKS: ClassVar[int] = 1
+    ITERATING_RESCUE: ClassVar[int] = 2
+    ITERATING_ALWAYS: ClassVar[int] = 3
+    ITERATING_HANDLERS: ClassVar[int] = 4
+    ITERATING_COMPLETE: ClassVar[int] = 5
+
+    # Failure state constants - bit flags as integers
+    # PROBLEM: Bit manipulation makes it even more confusing
+    FAILED_NONE: ClassVar[int] = 0
+    FAILED_SETUP: ClassVar[int] = 1
+    FAILED_TASKS: ClassVar[int] = 2
+    FAILED_RESCUE: ClassVar[int] = 4
+    FAILED_ALWAYS: ClassVar[int] = 8
+
     play: Play
     inventory: Inventory
     host_states: Dict[str, HostState] = Field(default_factory=dict)
 
     def __init__(self, **data):
         super().__init__(**data)
-        # Initialize host states
+        # Initialize host states with integer state
         hosts = self.inventory.get_hosts(self.play.hosts)
         for host in hosts:
-            self.host_states[host.name] = HostState(host_name=host.name)
+            self.host_states[host.name] = HostState(
+                host_name=host.name,
+                run_state=self.ITERATING_SETUP,  # Using integer constant
+                fail_state=self.FAILED_NONE
+            )
 
-    def get_next_task_for_host(self, host_name: str) -> Optional[Tuple[Task, IteratingStates]]:
+    def get_next_task_for_host(self, host_name: str) -> Optional[Tuple[Task, int]]:
         """
         Get the next task for a host.
 
+        PROBLEM: Returns integer state instead of typed enum
+        Makes caller code harder to understand
+
         Returns:
-            Tuple of (task, state) or None if host is complete
+            Tuple of (task, state_integer) or None if host is complete
         """
         if host_name not in self.host_states:
             return None
 
         state = self.host_states[host_name]
 
-        # Complete state
-        if state.run_state == IteratingStates.COMPLETE:
+        # Complete state - PROBLEM: comparing integer directly
+        if state.run_state == self.ITERATING_COMPLETE:  # What does 5 mean?
             return None
 
         # Setup state (fact gathering)
-        if state.run_state == IteratingStates.SETUP:
+        if state.run_state == self.ITERATING_SETUP:  # What does 0 mean?
             if self.play.gather_facts:
                 setup_task = Task(
                     name="Gathering Facts",
                     action="setup",
                     task_id="setup"
                 )
-                return (setup_task, IteratingStates.SETUP)
+                # PROBLEM: Returning integer state
+                return (setup_task, self.ITERATING_SETUP)
             else:
                 # Skip to tasks
-                state.run_state = IteratingStates.TASKS
+                state.run_state = self.ITERATING_TASKS  # Magic number 1
                 return self.get_next_task_for_host(host_name)
 
         # Tasks state
-        if state.run_state == IteratingStates.TASKS:
+        if state.run_state == self.ITERATING_TASKS:  # What does 1 mean?
             all_tasks = self.play.pre_tasks + self.play.tasks + self.play.post_tasks
 
             if state.task_index < len(all_tasks):
                 task = all_tasks[state.task_index]
                 # Handle both Task and Block (simplified - treat Block tasks as flat list)
                 if isinstance(task, Task):
-                    return (task, IteratingStates.TASKS)
+                    # PROBLEM: Returning integer
+                    return (task, self.ITERATING_TASKS)
             else:
-                # Move to handlers
-                state.run_state = IteratingStates.HANDLERS
+                # Move to handlers - PROBLEM: Magic number 4
+                state.run_state = self.ITERATING_HANDLERS
                 state.task_index = 0
                 return self.get_next_task_for_host(host_name)
 
         # Handlers state
-        if state.run_state == IteratingStates.HANDLERS:
+        if state.run_state == self.ITERATING_HANDLERS:  # What does 4 mean?
             # Only run notified handlers
             if state.task_index < len(state.notified_handlers):
                 handler_name = state.notified_handlers[state.task_index]
@@ -373,10 +411,11 @@ class PlayIterator(BaseModel):
                         break
 
                 if handler:
-                    return (handler, IteratingStates.HANDLERS)
+                    # PROBLEM: Returning integer
+                    return (handler, self.ITERATING_HANDLERS)
 
-            # Move to complete
-            state.run_state = IteratingStates.COMPLETE
+            # Move to complete - PROBLEM: Magic number 5
+            state.run_state = self.ITERATING_COMPLETE
             return None
 
         return None
@@ -390,18 +429,19 @@ class PlayIterator(BaseModel):
 
         # Handle task failure
         if task_result.failed:
-            state.fail_state = True
+            # PROBLEM: Setting fail_state as integer bit flag
+            state.fail_state = self.FAILED_TASKS  # Magic number 2
             # In real Ansible, this would move to RESCUE state
             # Simplified: just mark as complete
-            state.run_state = IteratingStates.COMPLETE
+            state.run_state = self.ITERATING_COMPLETE  # Magic number 5
             return
 
         # Advance task index
         state.task_index += 1
 
         # If task completed setup, move to tasks
-        if state.run_state == IteratingStates.SETUP:
-            state.run_state = IteratingStates.TASKS
+        if state.run_state == self.ITERATING_SETUP:  # Comparing with 0
+            state.run_state = self.ITERATING_TASKS  # Setting to 1
             state.task_index = 0
 
     def is_host_complete(self, host_name: str) -> bool:
@@ -409,7 +449,8 @@ class PlayIterator(BaseModel):
         if host_name not in self.host_states:
             return True
 
-        return self.host_states[host_name].run_state == IteratingStates.COMPLETE
+        # PROBLEM: Comparing with integer constant
+        return self.host_states[host_name].run_state == self.ITERATING_COMPLETE
 
     def all_hosts_complete(self) -> bool:
         """Check if all hosts have completed."""
