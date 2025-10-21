@@ -150,6 +150,9 @@ class Play(BaseModel):
     vars: Dict[str, Any] = Field(default_factory=dict)
     vars_files: List[str] = Field(default_factory=list)
 
+    # Module defaults (PROBLEM 5640093f: often not applied by action plugins!)
+    module_defaults: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
     # Execution settings
     gather_facts: bool = True
     serial: Union[int, str] = "all"  # Batching
