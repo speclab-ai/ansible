@@ -109,9 +109,17 @@ class Task(BaseModel):
 
     # Internal
     task_id: str = ""
+    uuid: str = ""  # Task UUID (set automatically)
 
     class Config:
         populate_by_name = True  # Allow both 'register' and 'register_var'
+
+    def __init__(self, **data):
+        """Initialize task and generate UUID."""
+        super().__init__(**data)
+        if not self.uuid:
+            import uuid as uuid_module
+            self.uuid = str(uuid_module.uuid4())
 
 
 class Block(BaseModel):
