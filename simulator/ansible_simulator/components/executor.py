@@ -134,6 +134,19 @@ class TaskExecutor(BaseModel):
                 if module_result.ansible_facts:
                     self.host.gathered_facts.update(module_result.ansible_facts)
 
+            # PROBLEM REPRODUCTION (811093f0): Evaluate failed_when
+            if self.task.failed_when:
+                # Simplified evaluation - just check if it's "true" or boolean
+                should_fail = self._evaluate_conditional(self.task.failed_when)
+                if should_fail:
+                    result.failed = True
+                    result.msg = f"Failed due to failed_when: {self.task.failed_when}"
+
+            # PROBLEM REPRODUCTION (811093f0): Evaluate changed_when
+            if self.task.changed_when:
+                should_change = self._evaluate_conditional(self.task.changed_when)
+                result.changed = should_change
+
             # Set final state
             if result.failed and not self.task.ignore_errors:
                 result.state = TaskState.FAILED
@@ -495,6 +508,10 @@ class PlayIterator(BaseModel):
 
         # Handlers state
         if state.run_state == self.ITERATING_HANDLERS:  # What does 4 mean?
+            # PROBLEM REPRODUCTION (811093f0):
+            # Handler execution doesn't check if host failed
+            # Handlers can run on failed hosts!
+
             # Only run notified handlers
             if state.task_index < len(state.notified_handlers):
                 handler_name = state.notified_handlers[state.task_index]
@@ -506,6 +523,14 @@ class PlayIterator(BaseModel):
                         break
 
                 if handler:
+                    # PROBLEM (811093f0): Not checking fail_state before running handler
+                    # Failed hosts should NOT run handlers, but they do!
+                    if state.fail_state != self.FAILED_NONE:
+                        logger.warning(
+                            f"[{logger.name}] PROBLEM 811093f0: Running handler '{handler.name}' "
+                            f"on FAILED host {host_name} (fail_state={state.fail_state})"
+                        )
+
                     # PROBLEM: Returning integer
                     return (handler, self.ITERATING_HANDLERS)
 
@@ -526,9 +551,16 @@ class PlayIterator(BaseModel):
         if task_result.failed:
             # PROBLEM: Setting fail_state as integer bit flag
             state.fail_state = self.FAILED_TASKS  # Magic number 2
-            # In real Ansible, this would move to RESCUE state
-            # Simplified: just mark as complete
-            state.run_state = self.ITERATING_COMPLETE  # Magic number 5
+
+            # PROBLEM REPRODUCTION (811093f0):
+            # Don't immediately mark as complete - let it go to handlers!
+            # This allows handlers to run on failed hosts
+            # Advance task index to move past failed task
+            state.task_index += 1
+            logger.warning(
+                f"[{logger.name}] PROBLEM 811093f0: Host {host_name} failed but will "
+                f"continue to handlers phase (fail_state={state.fail_state})"
+            )
             return
 
         # Advance task index
