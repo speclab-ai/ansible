@@ -58,6 +58,10 @@ class TaskExecutor(BaseModel):
         3. Establish connection
         4. Execute module
         5. Process results
+
+        PROBLEM REPRODUCTION (42355d18):
+        When task uses both loop and delegate_to, they are evaluated TWICE
+        causing inconsistent results when delegate_to uses random selection.
         """
         logger.info(
             f"[{self.env.now:.4f}] TaskExecutor: Executing task '{self.task.name}' "
@@ -91,6 +95,20 @@ class TaskExecutor(BaseModel):
                     result.skipped = True
                     result.msg = "Skipped due to conditional"
                     return result
+
+            # PROBLEM: Evaluate delegate_to FIRST TIME (early evaluation)
+            if self.task.delegate_to:
+                delegate_host_1 = self._evaluate_delegate_to(self.task.delegate_to)
+                logger.warning(
+                    f"[{self.env.now:.4f}] PROBLEM: Evaluated delegate_to (1st time) -> {delegate_host_1}"
+                )
+
+            # PROBLEM: Evaluate loop items FIRST TIME (early evaluation)
+            if self.task.loop:
+                loop_items_1 = self._evaluate_loop_items(self.task.loop)
+                logger.warning(
+                    f"[{self.env.now:.4f}] PROBLEM: Evaluated loop items (1st time) -> {loop_items_1}"
+                )
 
             # Handle loops
             if self.task.loop:
@@ -169,17 +187,35 @@ class TaskExecutor(BaseModel):
         return result
 
     def _run_loop(self):
-        """Execute task with loop."""
+        """
+        Execute task with loop.
+
+        PROBLEM REPRODUCTION (42355d18):
+        Evaluates loop items and delegate_to SECOND TIME during execution.
+        """
         if not self.task.loop:
             return []
 
-        logger.info(f"[{self.env.now:.4f}] TaskExecutor: Running loop with {len(self.task.loop)} items")
+        # PROBLEM: Evaluate loop items SECOND TIME
+        loop_items_2 = self._evaluate_loop_items(self.task.loop)
+        logger.warning(
+            f"[{self.env.now:.4f}] PROBLEM: Evaluated loop items (2nd time) -> {loop_items_2}"
+        )
+
+        logger.info(f"[{self.env.now:.4f}] TaskExecutor: Running loop with {len(loop_items_2)} items")
 
         loop_results = []
 
-        for item in self.task.loop:
+        for item in loop_items_2:
             # Add item to task vars
             self.task_vars["item"] = item
+
+            # PROBLEM: Evaluate delegate_to SECOND TIME (once per loop iteration!)
+            if self.task.delegate_to:
+                delegate_host_2 = self._evaluate_delegate_to(self.task.delegate_to)
+                logger.warning(
+                    f"[{self.env.now:.4f}] PROBLEM: Evaluated delegate_to (2nd time, iteration) -> {delegate_host_2}"
+                )
 
             # Execute task
             result = yield from self._execute()
@@ -196,6 +232,41 @@ class TaskExecutor(BaseModel):
                 break
 
         return loop_results
+
+    def _evaluate_loop_items(self, loop_value):
+        """
+        Evaluate loop items (simulated).
+
+        PROBLEM: This gets called TWICE - once early, once during execution.
+        If loop uses dynamic values (e.g. query, random), results differ.
+        """
+        # For simulation, just return the loop value
+        # In real Ansible, this would template/evaluate the loop expression
+        if isinstance(loop_value, list):
+            return loop_value
+        return []
+
+    def _evaluate_delegate_to(self, delegate_to_value):
+        """
+        Evaluate delegate_to target (simulated).
+
+        PROBLEM: This gets called MULTIPLE TIMES:
+        - Once early in run()
+        - Once per loop iteration in _run_loop()
+
+        If delegate_to uses random selection or dynamic lookup, each call
+        returns different results causing inconsistent delegation!
+        """
+        # In real Ansible, this would template the delegate_to expression
+        # For simulation, just return the value
+        # But we add random selection to demonstrate the problem
+        if delegate_to_value and "random" in delegate_to_value.lower():
+            # Simulate random host selection
+            import random
+            hosts = ["host1", "host2", "host3"]
+            selected = random.choice(hosts)
+            return selected
+        return delegate_to_value
 
     def _evaluate_conditional(self, condition: str) -> bool:
         """
