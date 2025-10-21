@@ -129,7 +129,7 @@ def demonstrate_problem():
     logger.info("")
 
     # PROBLEM: Can assign wrong type
-    iterator.host_states['web2'] = "not a HostState object!"  # Wrong type!
+    iterator.host_states['web2'] = "not a HostState object!"  # type: ignore[assignment]  # Wrong type!
     print(f"  Assigned string to host_states['web2']: {iterator.host_states['web2']}")
 
     logger.info("")

@@ -14,7 +14,7 @@ from collections import deque
 from simulator.infra.network import Network
 
 from ansible_simulator.shared.models import (
-    Play, Inventory, PlayStats, TaskResult, TaskState
+    Play, Inventory, PlayStats, TaskResult, TaskState, Task
 )
 from ansible_simulator.components.executor import (
     WorkerProcess, PlayIterator

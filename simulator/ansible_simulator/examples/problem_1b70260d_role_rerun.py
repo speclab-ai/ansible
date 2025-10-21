@@ -39,7 +39,7 @@ When running with --tags config,deploy:
 """
 
 import logging
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Optional
 
 from ansible_simulator.shared.models import (
     Play, Task, Block, Role
@@ -67,7 +67,7 @@ class RoleManager:
         """Register an available role."""
         self.available_roles[role.name] = role
 
-    def execute_role(self, role_name: str, tags_filter: List[str] = None) -> List[str]:
+    def execute_role(self, role_name: str, tags_filter: Optional[List[str]] = None) -> List[str]:
         """
         Execute a role and its dependencies.
 
@@ -76,7 +76,7 @@ class RoleManager:
         Returns:
             List of executed role names
         """
-        executed = []
+        executed: List[str] = []
 
         if role_name not in self.available_roles:
             logger.warning(f"Role '{role_name}' not found")
@@ -212,7 +212,8 @@ def demonstrate_problem():
     logger.info("")
     logger.info("Executing roles (with dependencies):")
     for role in play.roles:
-        role_mgr.execute_role(role.name, tags_filter)
+        role_name = role if isinstance(role, str) else role.name
+        role_mgr.execute_role(role_name, tags_filter)
     logger.info("")
 
     # Phase 2: Execute block with tag 'config'
@@ -254,7 +255,8 @@ def demonstrate_problem():
     logger.info("")
     logger.info("Re-evaluating role dependencies:")
     for role in play.roles:
-        role_mgr.execute_role(role.name, tags_filter)
+        role_name = role if isinstance(role, str) else role.name
+        role_mgr.execute_role(role_name, tags_filter)
     logger.info("")
 
     logger.info("🐛 BUG: 'common' role executed TWICE!")
