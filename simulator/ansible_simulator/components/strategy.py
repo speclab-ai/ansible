@@ -250,8 +250,10 @@ class LinearStrategy(StrategyBase):
             hosts_without_work = []
 
             for host in hosts:
-                if host.name in self.task_queue_manager.failed_hosts:
-                    continue
+                # PROBLEM REPRODUCTION (811093f0):
+                # Don't skip failed hosts entirely - let them run handlers!
+                # This demonstrates the problem of handlers running on failed hosts
+                is_failed = host.name in self.task_queue_manager.failed_hosts
 
                 next_task = iterator.get_next_task_for_host(host.name)
                 if next_task:
@@ -338,12 +340,19 @@ class LinearStrategy(StrategyBase):
                     stats.tasks_skipped += 1
 
                 # Handle handler notifications
-                if result.state == TaskState.SUCCESS and not result.failed:
+                # PROBLEM REPRODUCTION (811093f0):
+                # Notify handlers if task was changed, even if it later failed
+                # This allows us to demonstrate handlers running on failed hosts
+                if result.changed:
                     # Check if task should notify handlers
                     for task, host, state in tasks_to_run:
                         if task.name == result.task_name and host.name == result.host_name:
                             for handler_name in task.notify:
                                 iterator.notify_handler(result.host_name, handler_name)
+                                logger.warning(
+                                    f"[{self.env.now:.4f}] PROBLEM 811093f0: Notified handler '{handler_name}' "
+                                    f"on {result.host_name} (task state={result.state.value}, failed={result.failed})"
+                                )
 
         # Update host stats
         for host_name, results in host_results.items():
