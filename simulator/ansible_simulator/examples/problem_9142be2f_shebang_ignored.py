@@ -26,6 +26,7 @@ EXPECTED:
 
 import logging
 import re
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class ModuleCommon:
     def __init__(self):
         self.default_python = "/usr/bin/python"
 
-    def process_module(self, module_source: str, ansible_python_interpreter: str = None) -> str:
+    def process_module(self, module_source: str, ansible_python_interpreter: Optional[str] = None) -> str:
         """
         Process module source and construct final payload.
 
