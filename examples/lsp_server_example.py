@@ -28,16 +28,13 @@ logger = logging.getLogger(__name__)
 
 
 def example_with_default_config():
-    """Example: Start LSP server with default configuration (from config file)."""
+    """Example: Start LSP server with default configuration."""
     logger.info("=" * 60)
     logger.info("Example 1: LSP Server with Default Configuration")
     logger.info("=" * 60)
 
-    # This will use configuration from:
-    # - $ANSIBLE_RESOURCE_LIMITS_CONFIG, or
-    # - ~/.ansible/resource_limits.json, or
-    # - /etc/ansible/resource_limits.json, or
-    # - Default values (50% memory, 90% CPU)
+    # This will use default values (50% memory, 90% CPU)
+    # In a real editor, you would load config from the editor's main config file
 
     server = create_lsp_server(
         command=['python', '-c', 'import time; time.sleep(10)'],  # Mock LSP server
@@ -111,17 +108,42 @@ def example_with_context_manager():
     logger.info("Server automatically stopped by context manager")
 
 
-def example_display_config():
-    """Example: Display current configuration."""
+def example_with_editor_config():
+    """Example: Load configuration from editor's main config file."""
     logger.info("\n" + "=" * 60)
-    logger.info("Example 4: Display Configuration")
+    logger.info("Example 4: Using Editor Configuration")
     logger.info("=" * 60)
 
-    config = ResourceLimitsConfig.load_config()
+    # Simulate loading config from editor's main config file
+    # In a real editor, this would be loaded from JSON/YAML/TOML config
+    editor_config = {
+        'process_limits': {
+            'lsp_server': {
+                'memory_percent': 40.0,
+                'cpu_percent': 80.0,
+                'enabled': True,
+            }
+        }
+    }
 
-    logger.info(f"LSP Server Limits: {config.get_lsp_limits()}")
-    logger.info(f"Default Limits: {config.get_default_limits()}")
-    logger.info(f"\nFull Config: {config}")
+    config = ResourceLimitsConfig(editor_config)
+    logger.info(f"Loaded config from editor: {config}")
+
+    server = create_lsp_server(
+        command=['python', '-c', 'import time; time.sleep(5)'],
+        config=config
+    )
+
+    try:
+        server.start()
+        logger.info(f"Server running with config limits: {server.limits}")
+
+        import time
+        time.sleep(2)
+
+    finally:
+        server.stop()
+        logger.info("Server stopped")
 
 
 def example_platform_check():
@@ -153,10 +175,10 @@ if __name__ == '__main__':
     try:
         # Run all examples
         example_platform_check()
-        example_display_config()
         example_with_default_config()
         example_with_custom_limits()
         example_with_context_manager()
+        example_with_editor_config()
 
         logger.info("\n" + "=" * 60)
         logger.info("All examples completed successfully!")

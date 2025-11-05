@@ -1,10 +1,10 @@
 # Process Resource Limits
 
-This document describes the infrastructure for running external processes with limited memory and CPU caps in Ansible.
+This document describes the infrastructure for running external processes with limited memory and CPU caps.
 
 ## Overview
 
-The process resource limiting infrastructure allows Ansible to spawn external processes (such as LSP servers) with configurable memory and CPU limits. This helps prevent runaway processes from consuming excessive system resources.
+The process resource limiting infrastructure allows spawning external processes (such as LSP servers) with configurable memory and CPU limits. This helps prevent runaway processes from consuming excessive system resources.
 
 ## Platform Support
 
@@ -59,15 +59,9 @@ Core infrastructure for process resource limiting:
 Configuration management for resource limits:
 
 - **`ResourceLimitsConfig`**: Main configuration class
-  - Loads configuration from JSON files
+  - Accepts configuration dictionary from editor's main config
   - Provides default values (50% memory, 90% CPU)
-  - Supports multiple configuration sources (see below)
-
-Configuration file locations (in priority order):
-1. Path specified via `ANSIBLE_RESOURCE_LIMITS_CONFIG` environment variable
-2. `~/.ansible/resource_limits.json` (user config)
-3. `/etc/ansible/resource_limits.json` (system config)
-4. Default values if no config file found
+  - Integrates with editor's configuration system
 
 ### 3. LSP Server Executor (`lib/ansible/utils/lsp_server.py`)
 
@@ -83,28 +77,32 @@ High-level interface for running LSP servers with resource limits:
 
 ## Configuration
 
-### JSON Configuration File
+### Editor Configuration
 
-Example configuration (`examples/resource_limits.json`):
+Configuration should be part of the editor's main configuration file. The expected structure is:
 
 ```json
 {
-  "lsp_server": {
-    "enabled": true,
-    "memory_percent": 50.0,
-    "cpu_percent": 90.0
-  },
-  "default": {
-    "enabled": true,
-    "memory_percent": 50.0,
-    "cpu_percent": 90.0
+  "process_limits": {
+    "lsp_server": {
+      "enabled": true,
+      "memory_percent": 50.0,
+      "cpu_percent": 90.0
+    },
+    "default": {
+      "enabled": true,
+      "memory_percent": 50.0,
+      "cpu_percent": 90.0
+    }
   }
 }
 ```
 
+The editor should load this configuration and pass it to `ResourceLimitsConfig` when creating LSP servers.
+
 ### Default Values
 
-If no configuration file is found, the following defaults are used:
+If no configuration is provided, the following defaults are used:
 
 - **Memory**: 50% of total system memory
 - **CPU**: 90% of total CPU capacity
@@ -139,7 +137,31 @@ server.start()
 server.stop()
 ```
 
-### Example 2: LSP Server with Context Manager
+### Example 2: LSP Server with Editor Configuration
+
+```python
+from ansible.utils.lsp_server import create_lsp_server
+from ansible.config.resource_limits_config import ResourceLimitsConfig
+
+# Load configuration from editor's main config
+editor_config = {
+    'process_limits': {
+        'lsp_server': {
+            'memory_percent': 40.0,
+            'cpu_percent': 80.0,
+            'enabled': True
+        }
+    }
+}
+
+config = ResourceLimitsConfig(editor_config)
+server = create_lsp_server(['pylsp'], config=config)
+server.start()
+# ...
+server.stop()
+```
+
+### Example 3: LSP Server with Context Manager
 
 ```python
 from ansible.utils.lsp_server import create_lsp_server
@@ -153,7 +175,7 @@ with create_lsp_server(['pylsp']) as server:
 # Server automatically stopped
 ```
 
-### Example 3: Custom Resource Limits
+### Example 4: Custom Resource Limits
 
 ```python
 from ansible.utils.lsp_server import LSPServer
@@ -168,7 +190,7 @@ server.start()
 server.stop()
 ```
 
-### Example 4: Absolute Memory Limit
+### Example 5: Absolute Memory Limit
 
 ```python
 from ansible.utils.process_limiter import ResourceLimits
@@ -177,7 +199,7 @@ from ansible.utils.process_limiter import ResourceLimits
 limits = ResourceLimits(memory_bytes=2 * 1024 * 1024 * 1024)
 ```
 
-### Example 5: Direct Process Limiting
+### Example 6: Direct Process Limiting
 
 ```python
 from ansible.utils.process_limiter import create_process_limiter, ResourceLimits

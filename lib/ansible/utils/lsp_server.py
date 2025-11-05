@@ -51,9 +51,9 @@ class LSPServer:
 
         # Determine resource limits
         if limits is None:
-            # Load from config
+            # Use config (or default if not provided)
             if config is None:
-                config = ResourceLimitsConfig.load_config()
+                config = ResourceLimitsConfig.get_default_config()
 
             lsp_config = config.get_lsp_limits()
             if lsp_config.get('enabled', True):
@@ -202,7 +202,7 @@ def create_lsp_server(
     command: List[str],
     cwd: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
-    config_path: Optional[str] = None,
+    config: Optional[ResourceLimitsConfig] = None,
 ) -> LSPServer:
     """Factory function to create an LSP server with configuration.
 
@@ -210,12 +210,14 @@ def create_lsp_server(
         command: Command and arguments to start the LSP server
         cwd: Working directory for the server
         env: Environment variables for the server
-        config_path: Optional path to configuration file
+        config: Resource limits configuration from editor's main config.
+               If not provided, uses default limits (50% memory, 90% CPU).
 
     Returns:
         LSPServer instance
     """
-    config = ResourceLimitsConfig.load_config(config_path)
+    if config is None:
+        config = ResourceLimitsConfig.get_default_config()
     return LSPServer(command=command, cwd=cwd, env=env, config=config)
 
 

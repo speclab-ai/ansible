@@ -28,10 +28,12 @@ class TestLSPServer:
     def test_init_with_config(self):
         """Test initialization with configuration."""
         config = ResourceLimitsConfig({
-            'lsp_server': {
-                'memory_percent': 25.0,
-                'cpu_percent': 55.0,
-                'enabled': True,
+            'process_limits': {
+                'lsp_server': {
+                    'memory_percent': 25.0,
+                    'cpu_percent': 55.0,
+                    'enabled': True,
+                }
             }
         })
 
@@ -44,8 +46,10 @@ class TestLSPServer:
     def test_init_with_disabled_limits(self):
         """Test initialization with limits disabled in config."""
         config = ResourceLimitsConfig({
-            'lsp_server': {
-                'enabled': False,
+            'process_limits': {
+                'lsp_server': {
+                    'enabled': False,
+                }
             }
         })
 
@@ -227,35 +231,35 @@ class TestLSPServer:
 class TestCreateLSPServer:
     """Test create_lsp_server factory function."""
 
-    @patch('ansible.config.resource_limits_config.ResourceLimitsConfig.load_config')
-    def test_create_with_default_config(self, mock_load_config):
+    def test_create_with_default_config(self):
         """Test creating server with default configuration."""
-        mock_config = Mock()
-        mock_load_config.return_value = mock_config
-
         server = create_lsp_server(['test'])
 
         assert isinstance(server, LSPServer)
         assert server.command == ['test']
-        mock_load_config.assert_called_once_with(None)
+        # Should use default limits
+        assert server.limits is not None
 
-    @patch('ansible.config.resource_limits_config.ResourceLimitsConfig.load_config')
-    def test_create_with_config_path(self, mock_load_config):
-        """Test creating server with config path."""
-        mock_config = Mock()
-        mock_load_config.return_value = mock_config
+    def test_create_with_custom_config(self):
+        """Test creating server with custom config."""
+        config = ResourceLimitsConfig({
+            'process_limits': {
+                'lsp_server': {
+                    'memory_percent': 30.0,
+                    'cpu_percent': 70.0,
+                    'enabled': True,
+                }
+            }
+        })
 
-        server = create_lsp_server(['test'], config_path='/path/to/config.json')
+        server = create_lsp_server(['test'], config=config)
 
         assert isinstance(server, LSPServer)
-        mock_load_config.assert_called_once_with('/path/to/config.json')
+        assert server.limits.memory_percent == 30.0
+        assert server.limits.cpu_percent == 70.0
 
-    @patch('ansible.config.resource_limits_config.ResourceLimitsConfig.load_config')
-    def test_create_with_cwd_and_env(self, mock_load_config):
+    def test_create_with_cwd_and_env(self):
         """Test creating server with working directory and environment."""
-        mock_config = Mock()
-        mock_load_config.return_value = mock_config
-
         env = {'VAR': 'value'}
         server = create_lsp_server(['test'], cwd='/tmp', env=env)
 
