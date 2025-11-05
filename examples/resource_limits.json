@@ -1,0 +1,36 @@
+{
+  "description": "Resource limits configuration for external processes",
+  "comment": "This file configures memory and CPU limits for LSP servers and other external processes",
+
+  "lsp_server": {
+    "enabled": true,
+    "memory_percent": 50.0,
+    "cpu_percent": 90.0,
+    "description": "Resource limits for LSP (Language Server Protocol) servers",
+    "comment": "memory_percent: Percentage of total system memory (0-100)",
+    "comment2": "cpu_percent: Percentage of total CPU capacity (0-100+, can exceed 100 for multi-core)"
+  },
+
+  "default": {
+    "enabled": true,
+    "memory_percent": 50.0,
+    "cpu_percent": 90.0,
+    "description": "Default resource limits for other processes"
+  },
+
+  "notes": [
+    "On Linux, this uses cgroups v2 for resource control",
+    "On non-Linux platforms, resource limiting is not yet implemented (TODO)",
+    "You can place this file at:",
+    "  - $ANSIBLE_RESOURCE_LIMITS_CONFIG (environment variable)",
+    "  - ~/.ansible/resource_limits.json (user config)",
+    "  - /etc/ansible/resource_limits.json (system config)",
+    "",
+    "Memory limit example:",
+    "  - 50% on a system with 16GB RAM = 8GB limit per process",
+    "",
+    "CPU limit example:",
+    "  - 90% on a 4-core system = 3.6 cores available",
+    "  - 200% means 2 full cores on a multi-core system"
+  ]
+}
